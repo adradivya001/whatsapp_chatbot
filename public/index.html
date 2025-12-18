@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SakhiBot Chat</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="chat-panel">
+        <header class="chat-header">
+          <div class="chat-header__avatar">S</div>
+          <div>
+            <h1>SakhiBot</h1>
+            <p>Always here to guide you</p>
+          </div>
+        </header>
+
+        <div class="chat-history" id="chat-history"></div>
+
+        <footer class="chat-input">
+          <form id="chat-form">
+            <button type="button" class="attach-btn" aria-label="Attach">
+              📎
+            </button>
+            <input
+              id="chat-message"
+              name="message"
+              type="text"
+              placeholder="Type a message"
+              autocomplete="off"
+              required
+            />
+            <button type="submit" class="send-btn" aria-label="Send">
+              ➤
+            </button>
+          </form>
+        </footer>
+      </section>
+
+      <aside class="floating-player" id="floating-player" aria-hidden="true">
+        <div class="floating-player__header">
+          <span id="floating-title">IVF Video</span>
+          <div class="floating-player__actions">
+            <button
+              type="button"
+              id="pip-btn"
+              class="floating-player__action"
+              aria-label="Toggle Picture in Picture"
+            >
+              PiP
+            </button>
+            <button
+              type="button"
+              id="minimise-btn"
+              class="floating-player__action"
+              aria-label="Minimise video"
+            >
+              ⤢
+            </button>
+            <button
+              type="button"
+              id="close-btn"
+              class="floating-player__action"
+              aria-label="Close video"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+        <div class="floating-player__body">
+          <div class="video-wrapper">
+            <iframe
+              id="floating-iframe"
+              title="Video player"
+              frameborder="0"
+              allow="autoplay; encrypted-media; picture-in-picture"
+              allowfullscreen
+            ></iframe>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <template id="message-template">
+      <article class="message message--bot">
+        <div class="message__bubble">
+          <p class="message__text"></p>
+        </div>
+        <time class="message__time"></time>
+      </article>
+    </template>
+
+    <template id="video-template">
+      <article class="message message--bot message--video">
+        <button class="message__bubble video-card" type="button">
+          <img class="video-card__thumb" alt="" />
+          <span class="video-card__play">▶</span>
+          <div class="video-card__meta">
+            <strong class="video-card__title"></strong>
+            <span class="video-card__caption"></span>
+          </div>
+        </button>
+        <time class="message__time"></time>
+      </article>
+    </template>
+
+    <script type="module" src="chat.js"></script>
+  </body>
+</html>
