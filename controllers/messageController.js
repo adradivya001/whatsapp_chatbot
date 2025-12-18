@@ -1,5 +1,5 @@
 const axios = require("axios");
-const { sendMessage, uploadExternalImageAsMedia } = require("../config/whatsapp");
+const { sendMessage, uploadExternalImageAsMedia, normalisePreviewLink } = require("../config/whatsapp");
 
 // ==========================================
 // CONFIGURATION & CONSTANTS
@@ -70,7 +70,7 @@ function extractMessageInfo(body) {
         const listId = listReply.id || "";
         const selectedText = listReply.description || listReply.title || "";
         const isFollowUpSelection = typeof listId === "string" && listId.startsWith("followup_");
-        
+
         const cleanedSelection = isFollowUpSelection
           ? normaliseFollowUpLabel(selectedText)
           : selectedText.trim();
@@ -103,7 +103,7 @@ function extractStatusInfo(body) {
       const value = change.value || {};
       const statuses = value.statuses;
       if (!Array.isArray(statuses) || !statuses.length) continue;
-      
+
       const status = statuses[0];
       return {
         id: status.id || null,
@@ -169,9 +169,9 @@ async function handleChatAndReply(messageInfo) {
       replyText,
       response.data?.youtube_link
     );
-    
+
     const infographicAttachment = await prepareInfographicAttachment(response.data?.infographic_url);
-    
+
     const outboundMessages = buildResponseMessages(
       mainText,
       youtubeLink,
@@ -226,10 +226,10 @@ function extractFollowUps(text) {
   const markerRegex = /follow[\s-]*ups?\s*:/i;
   const match = markerRegex.exec(text);
   if (!match) return [];
-  
+
   const blockStart = match.index + match[0].length;
   const block = text.slice(blockStart).trim();
-  
+
   return block.split(/\r?\n/).map(normaliseFollowUpLabel).filter(Boolean).slice(0, 10);
 }
 
@@ -245,7 +245,17 @@ function buildResponseMessages(mainText, youtubeLink, followUps, infographicAtta
   const messages = [];
 
   if (youtubeLink) {
-    messages.push(youtubeLink.trim());
+    // Normalize the link (converts embed/shorts to canonical watch URL for better previews)
+    const normalizedLink = normalisePreviewLink(youtubeLink.trim());
+
+    // Send with preview_url: true so WhatsApp shows a rich preview card
+    messages.push({
+      type: "text",
+      text: {
+        body: normalizedLink,
+        preview_url: true
+      }
+    });
   }
 
   // 1. Clean and Truncate the text
@@ -290,7 +300,7 @@ function buildFollowUpButtons(options, bodyText) {
         text: "",
       },
       body: {
-        text: cleanBody, 
+        text: cleanBody,
       },
       footer: {
         text: "Tap to select an item",
@@ -360,13 +370,13 @@ function buildReplyBody(mainText) {
   // This "weight" forces WhatsApp to collapse the message cleanly.
   const usedChars = preview.length + readMoreLabel.length + remainder.length;
   const availableSpace = MAX_BODY_API_LIMIT - usedChars;
-  
+
   // 3. Create invisible separator (Zero Width Space: \u200B)
   // We don't use newlines (\n) to avoid the "Gap" issue.
   let separator = "";
   if (availableSpace > 0) {
     // Fill remaining space with invisible chars (safely capped at 600 to be sure)
-    const fillCount = Math.min(availableSpace, 600); 
+    const fillCount = Math.min(availableSpace, 600);
     separator = "\u200B".repeat(fillCount);
   }
 

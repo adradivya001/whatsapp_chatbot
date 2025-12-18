@@ -1,59 +1,128 @@
-Deployment guide — Build locally, push to GitHub, deploy to Cloud Run
+# WhatsApp Chatbot - Docker Deployment Guide
 
-1) Local build & run (quick smoke test)
+## Quick Start
 
-```powershell
-cd /d d:\Ottobon\whatsapp-chatbot\whatsapp-chatbot
-# build locally (requires Docker)
-docker build -t sakhi-bot .
+### 1. Clone and Configure
+```bash
+# Copy environment template
+cp .env.example .env
 
-# run (map port and pass .env)
-docker run --rm -p 3000:3000 --env-file .env --name sakhi-bot sakhi-bot
-
-# test webhook handler locally
-curl -X POST "http://localhost:3000/webhook" -H "Content-Type: application/json" -d '{"object":"whatsapp_business_account","entry":[{"changes":[{"value":{"messages":[{"from":"919281011683","text":{"body":"Hello test"},"type":"text"}]}}]}]}'
+# Edit with your credentials
+nano .env
 ```
 
-2) Prepare Google Cloud
+### 2. Build and Run with Docker Compose (Recommended)
+```bash
+# Build and start
+docker compose up -d --build
 
-- Create a service account with roles: `Cloud Run Admin`, `Storage Admin` (or `Storage Object Admin`), and `Cloud Build Editor` or `Cloud Build Service Account` permissions.
-- Download the service account JSON key and save it locally.
-- In your GitHub repository settings -> Secrets -> Actions, add these secrets:
-  - `GCP_SA_KEY` — contents of the service account JSON file
-  - `GCP_PROJECT` — your GCP project id
-  - `GCP_REGION` — e.g. `us-central1`
-  - `VERIFY_TOKEN` — `aditya_token` (or whichever you use)
-  - `WHATSAPP_TOKEN` — your WhatsApp Cloud API token
-  - `PHONE_NUMBER_ID` — your phone number id (e.g. `768950296311329`)
+# View logs
+docker compose logs -f
 
-3) Push to GitHub
-
-```powershell
-# if not already a git repo
-git init
-git add .
-git commit -m "Add Dockerfile and Cloud Run workflow"
-# add remote and push
-git remote add origin https://github.com/YOUR_USER/YOUR_REPO.git
-git branch -M main
-git push -u origin main
+# Stop
+docker compose down
 ```
 
-4) What the workflow does
+### 3. Or Build and Run Manually
+```bash
+# Build the image
+docker build -t whatsapp-chatbot .
 
-- On push to `main`, the workflow authenticates to GCP using `GCP_SA_KEY`, runs Cloud Build to build and push the container image to Container Registry, and deploys the image to Cloud Run with environment variables taken from repository secrets.
-
-5) After deployment
-
-- Get the service URL via Cloud Console or:
-
-```powershell
-gcloud run services describe sakhi-bot --platform managed --region ${{ secrets.GCP_REGION }} --format "value(status.url)"
+# Run the container
+docker run -d \
+  --name whatsapp-chatbot \
+  -p 3000:3000 \
+  --env-file .env \
+  --restart unless-stopped \
+  whatsapp-chatbot
 ```
 
-- Configure the Meta webhook callback URL to: `https://<SERVICE_URL>/webhook` and set Verify Token to the same `VERIFY_TOKEN` value.
-- If your app requires any other secrets or env vars, add them in the GitHub secrets and update the workflow.
+---
 
-Notes
-- Do NOT commit `.env` to the repo. Keep tokens in GitHub secrets or use Secret Manager.
-- In Development app mode, only app admins/testers can receive messages. Make sure your target WhatsApp number is allowed or move the app to Live after review.
+## Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `VERIFY_TOKEN` | ✅ | Webhook verification token (set in Meta Developer Console) |
+| `WHATSAPP_TOKEN` | ✅ | WhatsApp Cloud API access token |
+| `PHONE_NUMBER_ID` | ✅ | Your WhatsApp phone number ID |
+| `SAKHI_API_URL` | ❌ | Backend API URL (default: `http://host.docker.internal:8000/sakhi/chat`) |
+| `PORT` | ❌ | Server port (default: `3000`) |
+
+---
+
+## Production Deployment Checklist
+
+- [ ] Set all environment variables in `.env`
+- [ ] Configure reverse proxy (nginx/traefik) with HTTPS
+- [ ] Update Meta webhook URL to your public domain
+- [ ] Enable log rotation (already configured in docker-compose.yml)
+- [ ] Set up monitoring/alerting for health endpoint
+
+---
+
+## Health Check
+
+The container includes a health check endpoint:
+```bash
+curl http://localhost:3000/
+# Returns: "WhatsApp webhook is running..."
+```
+
+---
+
+## Useful Commands
+
+```bash
+# View container status
+docker compose ps
+
+# View real-time logs
+docker compose logs -f whatsapp-chatbot
+
+# Restart container
+docker compose restart
+
+# Rebuild after code changes
+docker compose up -d --build
+
+# Remove container and image
+docker compose down --rmi local
+```
+
+---
+
+## Network Configuration
+
+If your Sakhi API is running on the **host machine**:
+- Use `host.docker.internal` as the hostname (already configured in docker-compose.yml)
+
+If running in **Docker network**:
+```yaml
+services:
+  whatsapp-chatbot:
+    environment:
+      - SAKHI_API_URL=http://sakhi-backend:8000/sakhi/chat
+    networks:
+      - app-network
+```
+
+---
+
+## Troubleshooting
+
+### Container won't start
+```bash
+docker compose logs whatsapp-chatbot
+```
+
+### Sharp image processing errors
+The Dockerfile includes `vips-dev` for Sharp. If issues persist:
+```bash
+docker compose build --no-cache
+```
+
+### Connection refused to Sakhi API
+- Verify `SAKHI_API_URL` is correct
+- If API is on host machine, use `host.docker.internal:8000`
+- Check firewall allows port 8000
