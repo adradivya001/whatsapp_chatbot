@@ -152,7 +152,7 @@ async function handleChatAndReply(messageInfo) {
       const replyText = response.data?.reply;
       if (replyText) await sendMessage(messageInfo.from, replyText);
 
-      const introImageUrl = "https://fxmahshkttkccevualan.supabase.co/storage/v1/object/public/sakhi_infographics/Sakhi_Intro-min.png";
+      const introImageUrl = "https://sakhi-infographics.s3.ap-south-2.amazonaws.com/images/Sakhi_Intr.jpeg";
       await sendMessage(messageInfo.from, { type: "image", image: { link: introImageUrl } });
       await sendMessage(messageInfo.from, buildOnboardingFooterMessage());
       return;
