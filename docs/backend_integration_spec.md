@@ -112,7 +112,7 @@ def send_whatsapp_marketing(phone, text, media_url=None):
     headers = {
         "x-internal-secret": INTERNAL_SECRET
     }
-
+0
     try:
         response = requests.post(MIDDLEWARE_URL, json=payload, headers=headers)
         response.raise_for_status()

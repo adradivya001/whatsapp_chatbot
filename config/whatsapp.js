@@ -89,6 +89,28 @@ const buildOutboundPayload = (to, message) => {
     };
   }
 
+  // Template Messages (for cold marketing / outside 24h window)
+  if (message.type === "template" || message.template_name) {
+    const templateName = message.template_name || message.template?.name;
+    const languageCode = message.language_code || message.template?.language?.code || "en_US";
+    const components = message.components || message.template?.components || [];
+
+    if (!templateName) {
+      return null;
+    }
+
+    return {
+      messaging_product: "whatsapp",
+      to,
+      type: "template",
+      template: {
+        name: templateName,
+        language: { code: languageCode },
+        components: components.length ? components : undefined,
+      },
+    };
+  }
+
   // Support explicit type flag (e.g., { type: "video", video: {...} })
   if (message.type === "video" || message.video || message.videoUrl || message.link) {
     const videoPayload = { ...(message.video || {}) };

@@ -1,6 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const { handleIncomingMessage } = require("./controllers/messageController");
+const { sendMessage } = require("./config/whatsapp");
 
 const app = express();
 const PORT = 3000; // fixed port for local testing and ngrok tunnelling
@@ -31,6 +32,59 @@ app.get("/webhook", (req, res) => {
 
 // POST webhook for inbound messages
 app.post("/webhook", handleIncomingMessage);
+
+// ==========================================
+// INTERNAL API FOR BACKEND
+// ==========================================
+app.post("/v1/send-message", async (req, res) => {
+  const secret = req.headers["x-internal-secret"];
+  const expectedSecret = process.env.INTERNAL_API_SECRET;
+
+  if (!expectedSecret || secret !== expectedSecret) {
+    console.warn("Unauthorized attempt to send message", { secret });
+    return res.sendStatus(401);
+  }
+
+  const { phone, message, media_url, template_name, language_code, components } = req.body;
+
+  // Validate: Need phone + at least one of: message, media_url, or template_name
+  if (!phone || (!message && !media_url && !template_name)) {
+    return res.status(400).json({ error: "Missing phone or message/media_url/template_name" });
+  }
+
+  try {
+    // Template Message (for cold marketing / outside 24h window)
+    if (template_name) {
+      const templatePayload = {
+        type: "template",
+        template_name,
+        language_code: language_code || "en_US",
+        components: components || [],
+      };
+      await sendMessage(phone, templatePayload);
+      return res.json({ status: "success", phone, type: "template" });
+    }
+
+    // Free-form Text Message (within 24h window)
+    if (message) {
+      await sendMessage(phone, message);
+    }
+
+    // Media Message
+    if (media_url) {
+      const mediaMessage = {
+        type: "image",
+        image: { link: media_url }
+      };
+      await sendMessage(phone, mediaMessage);
+    }
+
+    return res.json({ status: "success", phone, type: "freeform" });
+  } catch (error) {
+    console.error("Failed to send internal message:", error);
+    return res.status(500).json({ error: "Failed to send message" });
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`WhatsApp webhook listening on port ${PORT}`);
