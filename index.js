@@ -45,7 +45,7 @@ app.post("/v1/send-message", async (req, res) => {
     return res.sendStatus(401);
   }
 
-  const { phone, message, media_url, template_name, language_code, components } = req.body;
+  const { phone, message, media_url, template_name, language_code, components, body_parameters, body_parameters_named } = req.body;
 
   // Validate: Need phone + at least one of: message, media_url, or template_name
   if (!phone || (!message && !media_url && !template_name)) {
@@ -58,8 +58,10 @@ app.post("/v1/send-message", async (req, res) => {
       const templatePayload = {
         type: "template",
         template_name,
-        language_code: language_code || "en_US",
+        language_code: language_code || "en_IN",
         components: components || [],
+        body_parameters: body_parameters || [],
+        body_parameters_named: body_parameters_named || null, // For {{name}} style templates
       };
       await sendMessage(phone, templatePayload);
       return res.json({ status: "success", phone, type: "template" });

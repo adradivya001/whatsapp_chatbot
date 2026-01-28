@@ -30,7 +30,8 @@ x-internal-secret: YOUR_INTERNAL_SECRET
   "phone": "+919999999999",
   "template_name": "hello_world",
   "language_code": "en_US",
-  "components": []
+  "body_parameters": ["Aditya"],
+  "body_parameters_named": { "name": "Aditya" }
 }
 ```
 
@@ -39,7 +40,9 @@ x-internal-secret: YOUR_INTERNAL_SECRET
 | `phone` | string | Yes | Recipient phone number (E.164 format) |
 | `template_name` | string | Yes | Name of the approved template |
 | `language_code` | string | Yes | Template language (e.g., "en_US", "hi") |
-| `components` | array | No | Dynamic variable values (see below) |
+| `body_parameters` | array | No | **Positional**: `["Value"]` for `{{1}}` |
+| `body_parameters_named`| object| No | **Named**: `{"name": "Value"}` for `{{name}}` |
+| `components` | array | No | **Advanced**: Full Meta components format |
 
 ### Components Structure (For Dynamic Templates)
 If your template has placeholders like `Hello {{1}}, your code is {{2}}`, you must provide values:

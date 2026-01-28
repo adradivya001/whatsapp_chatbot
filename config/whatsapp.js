@@ -92,14 +92,60 @@ const buildOutboundPayload = (to, message) => {
   // Template Messages (for cold marketing / outside 24h window)
   if (message.type === "template" || message.template_name) {
     const templateName = message.template_name || message.template?.name;
-    const languageCode = message.language_code || message.template?.language?.code || "en_US";
-    const components = message.components || message.template?.components || [];
+    const languageCode = message.language_code || message.template?.language?.code || "en_IN";
+
+    // Support multiple ways to pass components:
+    // 1. Full "components" array (advanced, exact Meta format)
+    // 2. "body_parameters" shorthand (simple array of strings for body variables)
+    let components = message.components || message.template?.components || [];
+
+    console.log("[DEBUG] Template message received:", {
+      templateName,
+      languageCode,
+      body_parameters: message.body_parameters,
+      body_parameters_named: message.body_parameters_named,
+      components_before: components,
+    });
+
+    // Option A: Named parameters (for templates with {{name}} style placeholders)
+    // Format: { "name": "Deepthi", "code": "123456" }
+    if (message.body_parameters_named && typeof message.body_parameters_named === "object" && Object.keys(message.body_parameters_named).length > 0) {
+      const bodyParams = Object.entries(message.body_parameters_named).map(([key, value]) => ({
+        type: "text",
+        parameter_name: key,
+        text: String(value),
+      }));
+
+      components = [
+        ...components.filter((c) => c.type !== "body"),
+        { type: "body", parameters: bodyParams },
+      ];
+      console.log("[DEBUG] Components after body_parameters_named conversion:", JSON.stringify(components, null, 2));
+    }
+    // Option B: Positional parameters (for templates with {{1}} style placeholders)
+    else if (message.body_parameters && Array.isArray(message.body_parameters) && message.body_parameters.length > 0) {
+      const bodyParams = message.body_parameters.map((param) => {
+        // Support both string and object formats
+        if (typeof param === "string") {
+          return { type: "text", text: param };
+        }
+        return param; // Already in { type: "text", text: "..." } format
+      });
+
+      // Add body component with parameters
+      components = [
+        ...components.filter((c) => c.type !== "body"), // Remove existing body if any
+        { type: "body", parameters: bodyParams },
+      ];
+
+      console.log("[DEBUG] Components after body_parameters conversion:", JSON.stringify(components, null, 2));
+    }
 
     if (!templateName) {
       return null;
     }
 
-    return {
+    const payload = {
       messaging_product: "whatsapp",
       to,
       type: "template",
@@ -109,6 +155,10 @@ const buildOutboundPayload = (to, message) => {
         components: components.length ? components : undefined,
       },
     };
+
+    console.log("[DEBUG] Final template payload to Meta:", JSON.stringify(payload, null, 2));
+
+    return payload;
   }
 
   // Support explicit type flag (e.g., { type: "video", video: {...} })
